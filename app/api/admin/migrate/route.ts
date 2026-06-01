@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+
+if (typeof globalThis.WebSocket === "undefined") {
+  neonConfig.webSocketConstructor = ws;
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DATABASE_URL_missing" }, { status: 500 });
   }
 
-  const sql = neon(databaseUrl);
+  const pool = new Pool({ connectionString: databaseUrl });
   const log: string[] = [];
 
   const migrationsDir = join(process.cwd(), "prisma", "migrations");
@@ -50,8 +55,7 @@ export async function POST(req: NextRequest) {
     for (const stmt of statements) {
       const preview = (stmt.split("\n").find((l) => l.trim()) ?? "").slice(0, 80);
       try {
-        // sql.query exists at runtime on the neon HTTP driver
-        await (sql as unknown as { query: (q: string) => Promise<unknown> }).query(stmt + ";");
+        await pool.query(stmt + ";");
         log.push(`  ok   ${preview}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -59,11 +63,13 @@ export async function POST(req: NextRequest) {
           log.push(`  skip ${preview}`);
         } else {
           log.push(`  FAIL ${preview} :: ${msg}`);
+          await pool.end();
           return NextResponse.json({ ok: false, log }, { status: 500 });
         }
       }
     }
   }
 
+  await pool.end();
   return NextResponse.json({ ok: true, log });
 }
