@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EventTable } from "@/components/EventTable";
 import { EmptyState } from "@/components/EmptyState";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 type SearchParams = {
   provider?: string;
@@ -21,6 +24,7 @@ export default async function EventsPage({
 }: {
   searchParams: SearchParams;
 }) {
+  noStore();
   const where: Record<string, unknown> = {};
   if (searchParams.provider) where.provider = searchParams.provider;
   if (

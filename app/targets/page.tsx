@@ -1,10 +1,14 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { SectionHeader } from "@/components/SectionHeader";
 import { prisma } from "@/lib/db";
 import { TargetsManager } from "@/components/TargetsManager";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function TargetsPage() {
+  noStore();
   const targets = await prisma.replayTarget.findMany({
     orderBy: { createdAt: "desc" },
     include: {

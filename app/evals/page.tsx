@@ -1,10 +1,14 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EvalsManager, type EvalRow } from "@/components/EvalsManager";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function EvalsPage() {
+  noStore();
   const cases = await prisma.evalTestCase.findMany({
     orderBy: { createdAt: "desc" },
     include: {

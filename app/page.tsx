@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { StatCard } from "@/components/StatCard";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -7,8 +8,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { TryItPanel } from "@/components/TryItPanel";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function DashboardPage() {
+  noStore();
   const [total, received, delivered, failed, replayed, replayAttempts, recent] =
     await Promise.all([
       prisma.webhookEvent.count(),
