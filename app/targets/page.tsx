@@ -25,6 +25,18 @@ export default async function TargetsPage() {
     provider: t.provider,
     url: t.url,
     isActive: t.isActive,
+    isRetryEnabled: t.isRetryEnabled,
+    maxAttempts: t.maxAttempts,
+    backoffStrategy: t.backoffStrategy as "none" | "fixed" | "exponential",
+    backoffBaseMs: t.backoffBaseMs,
+    timeoutMs: t.timeoutMs,
+    retryOnStatuses: Array.isArray(t.retryOnStatuses)
+      ? (t.retryOnStatuses as number[])
+      : [],
+    isSignatureVerificationEnabled: t.isSignatureVerificationEnabled,
+    signatureHeaderName: t.signatureHeaderName ?? null,
+    signatureAlgorithm: t.signatureAlgorithm ?? null,
+    signingSecretEnvVar: t.signingSecretEnvVar ?? null,
     lastReplay: t.replayAttempts[0]
       ? {
           status: t.replayAttempts[0].status,
@@ -38,7 +50,7 @@ export default async function TargetsPage() {
       <SectionHeader
         eyebrow="targets"
         title="Replay Targets"
-        description="Configured endpoints used when replaying webhook events. Create, edit, and toggle targets directly."
+        description="Configured endpoints used when replaying webhook events. Configure retry policy, signature verification, and active state per target."
       />
       <div className="px-6 py-6">
         <TargetsManager initial={rows} />

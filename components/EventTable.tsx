@@ -5,9 +5,11 @@ type Row = {
   id: string;
   provider: string;
   eventType: string;
-  status: "received" | "delivered" | "failed" | "replayed";
+  status: "received" | "delivered" | "failed" | "replayed" | "dead_letter";
   receivedAt: Date | string;
   errorMessage?: string | null;
+  duplicateCount?: number | null;
+  signatureStatus?: "not_configured" | "verified" | "failed" | null;
 };
 
 export function EventTable({ rows }: { rows: Row[] }) {
@@ -16,11 +18,13 @@ export function EventTable({ rows }: { rows: Row[] }) {
       <table className="w-full table-fixed border-collapse">
         <thead>
           <tr className="border-b border-border bg-bg-panel/60 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
-            <th className="w-[30%] px-3 py-2 text-left">Event</th>
-            <th className="w-[18%] px-3 py-2 text-left">Provider</th>
-            <th className="w-[14%] px-3 py-2 text-left">Status</th>
-            <th className="w-[20%] px-3 py-2 text-left">Received</th>
-            <th className="w-[18%] px-3 py-2 text-left">Note</th>
+            <th className="w-[28%] px-3 py-2 text-left">Event</th>
+            <th className="w-[15%] px-3 py-2 text-left">Provider</th>
+            <th className="w-[12%] px-3 py-2 text-left">Status</th>
+            <th className="w-[10%] px-3 py-2 text-left">Sig</th>
+            <th className="w-[8%] px-3 py-2 text-left">Dups</th>
+            <th className="w-[15%] px-3 py-2 text-left">Received</th>
+            <th className="w-[12%] px-3 py-2 text-left">Note</th>
           </tr>
         </thead>
         <tbody>
@@ -52,6 +56,18 @@ export function EventTable({ rows }: { rows: Row[] }) {
                 <td className="px-3 py-2">
                   <EventStatusBadge status={r.status} />
                 </td>
+                <td className="px-3 py-2">
+                  <SignatureBadge status={r.signatureStatus ?? "not_configured"} />
+                </td>
+                <td className="px-3 py-2 font-mono text-xs text-fg-muted">
+                  {r.duplicateCount && r.duplicateCount > 0 ? (
+                    <span className="rounded border border-warn/40 bg-warn/10 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-warn">
+                      ×{r.duplicateCount}
+                    </span>
+                  ) : (
+                    <span className="text-fg-subtle">—</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 font-mono text-xs text-fg-muted">
                   <time dateTime={ts.toISOString()} title={ts.toISOString()}>
                     {formatRelative(ts)}
@@ -66,6 +82,27 @@ export function EventTable({ rows }: { rows: Row[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function SignatureBadge({
+  status,
+}: {
+  status: "not_configured" | "verified" | "failed";
+}) {
+  if (status === "not_configured") {
+    return <span className="font-mono text-xxs text-fg-subtle">—</span>;
+  }
+  const cls =
+    status === "verified"
+      ? "border-ok/40 bg-ok/10 text-ok"
+      : "border-danger/50 bg-danger/10 text-danger";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-xxs uppercase tracking-wider ${cls}`}
+    >
+      {status === "verified" ? "ok" : "fail"}
+    </span>
   );
 }
 

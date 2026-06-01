@@ -17,7 +17,13 @@ type SearchParams = {
   to?: string;
 };
 
-const STATUSES = ["received", "delivered", "failed", "replayed"] as const;
+const STATUSES = [
+  "received",
+  "delivered",
+  "failed",
+  "replayed",
+  "dead_letter",
+] as const;
 
 export default async function EventsPage({
   searchParams,
@@ -152,6 +158,8 @@ export default async function EventsPage({
               status: e.status,
               receivedAt: e.receivedAt,
               errorMessage: e.errorMessage,
+              duplicateCount: e.duplicateCount,
+              signatureStatus: e.signatureStatus,
             }))}
           />
         ) : (

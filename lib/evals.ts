@@ -2,17 +2,125 @@ import { prisma } from "./db";
 import { audit } from "./audit";
 import { replayEvent } from "./replay";
 
+export type Assertion =
+  | { type: "statusEquals"; expected: number }
+  | { type: "bodyIncludes"; expected: string }
+  | { type: "responseTimeLessThanMs"; expected: number };
+
+export type AssertionResult = {
+  type: Assertion["type"];
+  expected: number | string;
+  actual: number | string | null;
+  passed: boolean;
+  detail?: string;
+};
+
 export type EvalRunResult = {
   evalRunId: string;
   status: "pass" | "fail";
   expectedStatus: number;
   actualStatus?: number | null;
+  assertions: AssertionResult[];
   notes?: string;
 };
 
 /**
+ * Build the effective assertion list for an eval test case. If an explicit
+ * assertions[] is configured it is used as-is. Otherwise, fall back to the
+ * legacy fields (expectedStatus, expectedBodyIncludes, expectedMaxDurationMs)
+ * so old test cases keep working.
+ */
+function resolveAssertions(testCase: {
+  expectedStatus: number;
+  expectedBodyIncludes: string | null;
+  expectedMaxDurationMs: number | null;
+  assertions: unknown;
+}): Assertion[] {
+  const explicit = Array.isArray(testCase.assertions)
+    ? (testCase.assertions as Assertion[]).filter(
+        (a) =>
+          a &&
+          typeof a === "object" &&
+          (a.type === "statusEquals" ||
+            a.type === "bodyIncludes" ||
+            a.type === "responseTimeLessThanMs")
+      )
+    : [];
+  if (explicit.length) return explicit;
+
+  const legacy: Assertion[] = [
+    { type: "statusEquals", expected: testCase.expectedStatus },
+  ];
+  if (testCase.expectedBodyIncludes) {
+    legacy.push({
+      type: "bodyIncludes",
+      expected: testCase.expectedBodyIncludes,
+    });
+  }
+  if (testCase.expectedMaxDurationMs) {
+    legacy.push({
+      type: "responseTimeLessThanMs",
+      expected: testCase.expectedMaxDurationMs,
+    });
+  }
+  return legacy;
+}
+
+function evaluateAssertion(
+  a: Assertion,
+  reply: {
+    responseStatus?: number | null;
+    responseBody?: string | null;
+    durationMs?: number | null;
+  }
+): AssertionResult {
+  switch (a.type) {
+    case "statusEquals": {
+      const actual = reply.responseStatus ?? null;
+      const passed = actual === a.expected;
+      return {
+        type: a.type,
+        expected: a.expected,
+        actual,
+        passed,
+        detail: passed
+          ? `status=${actual}`
+          : `expected ${a.expected}, got ${actual ?? "no response"}`,
+      };
+    }
+    case "bodyIncludes": {
+      const body = reply.responseBody ?? "";
+      const passed = body.includes(a.expected);
+      return {
+        type: a.type,
+        expected: a.expected,
+        actual: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+        passed,
+        detail: passed
+          ? `body contains "${a.expected}"`
+          : `body does not contain "${a.expected}"`,
+      };
+    }
+    case "responseTimeLessThanMs": {
+      const actual = reply.durationMs ?? null;
+      const passed = actual !== null && actual < a.expected;
+      return {
+        type: a.type,
+        expected: a.expected,
+        actual,
+        passed,
+        detail: passed
+          ? `${actual}ms < ${a.expected}ms`
+          : `expected < ${a.expected}ms, got ${actual ?? "no timing"}ms`,
+      };
+    }
+  }
+}
+
+/**
  * Execute an eval test case. Performs a real replay against the case's pinned
- * target, records an EvalRun row, and writes audit logs.
+ * target, evaluates each configured assertion, records an EvalRun row with
+ * per-assertion evidence, and writes audit logs.
  */
 export async function runEvalCase(opts: {
   testCaseId: string;
@@ -43,20 +151,21 @@ export async function runEvalCase(opts: {
     actor: opts.actor ?? "evalbench",
   });
 
-  const statusMatches = replay.responseStatus === testCase.expectedStatus;
-  let bodyMatches = true;
-  if (testCase.expectedBodyIncludes) {
-    bodyMatches = (replay.responseBody ?? "").includes(testCase.expectedBodyIncludes);
-  }
-  const passed = statusMatches && bodyMatches;
-  let notes = "";
-  if (!statusMatches) {
-    notes = `Expected status ${testCase.expectedStatus}, got ${replay.responseStatus ?? "no response"}.`;
-  } else if (!bodyMatches) {
-    notes = `Status matched but response body does not include "${testCase.expectedBodyIncludes}".`;
-  } else {
-    notes = "Status and body matched expectations.";
-  }
+  const assertions = resolveAssertions(testCase);
+  const results = assertions.map((a) =>
+    evaluateAssertion(a, {
+      responseStatus: replay.responseStatus,
+      responseBody: replay.responseBody,
+      durationMs: replay.durationMs,
+    })
+  );
+  const passed = results.length > 0 && results.every((r) => r.passed);
+  const failed = results.filter((r) => !r.passed);
+  const notes = passed
+    ? `${results.length}/${results.length} assertion${
+        results.length === 1 ? "" : "s"
+      } passed.`
+    : failed.map((r) => r.detail ?? r.type).join("; ");
 
   const evalRun = await prisma.evalRun.create({
     data: {
@@ -66,14 +175,14 @@ export async function runEvalCase(opts: {
       expectedStatus: testCase.expectedStatus,
       actualStatus: replay.responseStatus,
       evidence: {
+        assertions: results,
         responseStatus: replay.responseStatus,
         responseBody: replay.responseBody?.slice(0, 2000),
         durationMs: replay.durationMs,
         replayStatus: replay.status,
+        replayRunId: replay.runId,
+        attempts: replay.attempts,
         errorMessage: replay.errorMessage,
-        expectedBodyIncludes: testCase.expectedBodyIncludes,
-        bodyMatches,
-        statusMatches,
       },
       notes,
     },
@@ -89,6 +198,8 @@ export async function runEvalCase(opts: {
       replayAttemptId: replay.attemptId,
       expectedStatus: testCase.expectedStatus,
       actualStatus: replay.responseStatus,
+      assertionsTotal: results.length,
+      assertionsFailed: failed.length,
     },
   });
 
@@ -97,6 +208,7 @@ export async function runEvalCase(opts: {
     status: passed ? "pass" : "fail",
     expectedStatus: testCase.expectedStatus,
     actualStatus: replay.responseStatus,
+    assertions: results,
     notes,
   };
 }

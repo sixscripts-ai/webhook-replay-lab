@@ -13,6 +13,16 @@ export const demoTargets = [
     provider: "stripe-demo",
     url: `${RECEIVER_BASE}/api/demo-receiver/stripe`,
     isActive: true,
+    isRetryEnabled: true,
+    maxAttempts: 3,
+    backoffStrategy: "exponential" as const,
+    backoffBaseMs: 500,
+    timeoutMs: 15000,
+    retryOnStatuses: [500, 502, 503, 504],
+    isSignatureVerificationEnabled: true,
+    signatureHeaderName: "x-stripe-signature",
+    signatureAlgorithm: "hmac-sha256",
+    signingSecretEnvVar: "STRIPE_DEMO_SIGNING_SECRET",
   },
   {
     id: "tgt_demo_github",
@@ -20,6 +30,16 @@ export const demoTargets = [
     provider: "github-demo",
     url: `${RECEIVER_BASE}/api/demo-receiver/github`,
     isActive: true,
+    isRetryEnabled: false,
+    maxAttempts: 1,
+    backoffStrategy: "none" as const,
+    backoffBaseMs: 500,
+    timeoutMs: 15000,
+    retryOnStatuses: [],
+    isSignatureVerificationEnabled: false,
+    signatureHeaderName: null,
+    signatureAlgorithm: null,
+    signingSecretEnvVar: null,
   },
   {
     id: "tgt_demo_shopify",
@@ -27,6 +47,16 @@ export const demoTargets = [
     provider: "shopify-demo",
     url: `${RECEIVER_BASE}/api/demo-receiver/shopify`,
     isActive: false,
+    isRetryEnabled: false,
+    maxAttempts: 1,
+    backoffStrategy: "none" as const,
+    backoffBaseMs: 500,
+    timeoutMs: 15000,
+    retryOnStatuses: [],
+    isSignatureVerificationEnabled: false,
+    signatureHeaderName: null,
+    signatureAlgorithm: null,
+    signingSecretEnvVar: null,
   },
 ];
 
@@ -34,12 +64,22 @@ type DemoEvent = {
   id: string;
   provider: string;
   eventType: string;
-  status: "received" | "delivered" | "failed" | "replayed";
+  status: "received" | "delivered" | "failed" | "replayed" | "dead_letter";
   headers: Record<string, string>;
   payload: Record<string, unknown>;
   receivedAt: string; // ISO
   errorMessage?: string;
   targetId?: string;
+  // M3 fields
+  externalEventId?: string | null;
+  dedupeKey?: string | null;
+  duplicateCount?: number;
+  signatureStatus?: "not_configured" | "verified" | "failed";
+  signatureHeaderName?: string | null;
+  signatureVerifiedAt?: string | null;
+  signatureFailureReason?: string | null;
+  deadLetterReason?: string | null;
+  deadLetteredAt?: string | null;
 };
 
 export const demoEvents: DemoEvent[] = [
@@ -65,6 +105,11 @@ export const demoEvents: DemoEvent[] = [
     receivedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     errorMessage: "Non-2xx response: 502",
     targetId: "tgt_demo_stripe",
+    externalEventId: "evt_demo_001",
+    dedupeKey: "stripe-demo:external:evt_demo_001",
+    signatureStatus: "verified",
+    signatureHeaderName: "x-stripe-signature",
+    signatureVerifiedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
   },
   {
     id: "evt_demo_002",
@@ -85,6 +130,12 @@ export const demoEvents: DemoEvent[] = [
     },
     receivedAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
     targetId: "tgt_demo_stripe",
+    externalEventId: "evt_demo_002",
+    dedupeKey: "stripe-demo:external:evt_demo_002",
+    duplicateCount: 2,
+    signatureStatus: "verified",
+    signatureHeaderName: "x-stripe-signature",
+    signatureVerifiedAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
   },
   {
     id: "evt_demo_003",
@@ -107,6 +158,8 @@ export const demoEvents: DemoEvent[] = [
     },
     receivedAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
     targetId: "tgt_demo_github",
+    externalEventId: "d7f9a-demo",
+    dedupeKey: "github-demo:external:d7f9a-demo",
   },
   {
     id: "evt_demo_004",
@@ -126,12 +179,14 @@ export const demoEvents: DemoEvent[] = [
       line_items: [{ title: "Volt Tee", quantity: 2 }],
     },
     receivedAt: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
+    externalEventId: "880123",
+    dedupeKey: "shopify-demo:external:880123",
   },
   {
     id: "evt_demo_005",
     provider: "stripe-demo",
     eventType: "invoice.payment_failed",
-    status: "failed",
+    status: "dead_letter",
     headers: {
       "content-type": "application/json",
       "x-event-type": "invoice.payment_failed",
@@ -143,8 +198,19 @@ export const demoEvents: DemoEvent[] = [
       attempt_count: 3,
     },
     receivedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    errorMessage: "ECONNREFUSED",
+    errorMessage: "Non-2xx response: 503",
     targetId: "tgt_demo_stripe",
+    externalEventId: "evt_demo_005",
+    dedupeKey: "stripe-demo:external:evt_demo_005",
+    signatureStatus: "verified",
+    signatureHeaderName: "x-stripe-signature",
+    signatureVerifiedAt: new Date(
+      Date.now() - 1000 * 60 * 60 * 5
+    ).toISOString(),
+    deadLetterReason: "Replay failed after 3 attempts: Non-2xx response: 503",
+    deadLetteredAt: new Date(
+      Date.now() - 1000 * 60 * 60 * 4
+    ).toISOString(),
   },
   {
     id: "evt_demo_006",
@@ -154,6 +220,31 @@ export const demoEvents: DemoEvent[] = [
     headers: { "content-type": "application/json" },
     payload: { hello: "world", nested: { ok: true, n: 7 } },
     receivedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    dedupeKey: "unknown-provider:hash:demo006",
+  },
+  {
+    id: "evt_demo_007",
+    provider: "stripe-demo",
+    eventType: "charge.refunded",
+    status: "received",
+    headers: {
+      "content-type": "application/json",
+      "x-event-type": "charge.refunded",
+      "x-stripe-signature": "sha256=tampered",
+    },
+    payload: {
+      id: "evt_demo_007",
+      type: "charge.refunded",
+      amount: 1500,
+      currency: "usd",
+    },
+    receivedAt: new Date(Date.now() - 1000 * 60 * 8).toISOString(),
+    targetId: "tgt_demo_stripe",
+    externalEventId: "evt_demo_007",
+    dedupeKey: "stripe-demo:external:evt_demo_007",
+    signatureStatus: "failed",
+    signatureHeaderName: "x-stripe-signature",
+    signatureFailureReason: "HMAC mismatch",
   },
 ];
 
@@ -161,11 +252,13 @@ export const demoEvalCases = [
   {
     id: "eval_demo_1",
     name: "Stripe payment.failed forwards 200",
-    description: "Replaying a failed payment should reach the forwarder and return 200 with ok:true.",
+    description:
+      "Replaying a failed payment should reach the forwarder, return 200, and respond quickly.",
     eventId: "evt_demo_001",
     targetId: "tgt_demo_stripe",
     expectedStatus: 200,
     expectedBodyIncludes: '"ok":true',
+    expectedMaxDurationMs: 2000,
     isActive: true,
   },
   {
@@ -176,6 +269,7 @@ export const demoEvalCases = [
     targetId: "tgt_demo_github",
     expectedStatus: 200,
     expectedBodyIncludes: '"ok":true',
+    expectedMaxDurationMs: 1500,
     isActive: true,
   },
 ];

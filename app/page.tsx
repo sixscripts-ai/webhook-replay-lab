@@ -13,23 +13,54 @@ export const fetchCache = "force-no-store";
 
 export default async function DashboardPage() {
   noStore();
-  const [total, received, delivered, failed, replayed, replayAttempts, recent] =
-    await Promise.all([
-      prisma.webhookEvent.count(),
-      prisma.webhookEvent.count({ where: { status: "received" } }),
-      prisma.webhookEvent.count({ where: { status: "delivered" } }),
-      prisma.webhookEvent.count({ where: { status: "failed" } }),
-      prisma.webhookEvent.count({ where: { status: "replayed" } }),
-      prisma.replayAttempt.count(),
-      prisma.webhookEvent.findMany({
-        orderBy: { receivedAt: "desc" },
-        take: 8,
-      }),
-    ]);
+  const [
+    total,
+    received,
+    delivered,
+    failed,
+    replayed,
+    deadLetter,
+    replayAttempts,
+    duplicateAgg,
+    signatureFailures,
+    evalPass,
+    evalFail,
+    durationAgg,
+    recent,
+  ] = await Promise.all([
+    prisma.webhookEvent.count(),
+    prisma.webhookEvent.count({ where: { status: "received" } }),
+    prisma.webhookEvent.count({ where: { status: "delivered" } }),
+    prisma.webhookEvent.count({ where: { status: "failed" } }),
+    prisma.webhookEvent.count({ where: { status: "replayed" } }),
+    prisma.webhookEvent.count({ where: { status: "dead_letter" } }),
+    prisma.replayAttempt.count(),
+    prisma.webhookEvent.aggregate({
+      _sum: { duplicateCount: true },
+    }),
+    prisma.webhookEvent.count({ where: { signatureStatus: "failed" } }),
+    prisma.evalRun.count({ where: { status: "pass" } }),
+    prisma.evalRun.count({ where: { status: "fail" } }),
+    prisma.replayAttempt.aggregate({
+      _avg: { durationMs: true },
+    }),
+    prisma.webhookEvent.findMany({
+      orderBy: { receivedAt: "desc" },
+      take: 8,
+    }),
+  ]);
 
   const successful = delivered + replayed;
   const denominator = total || 1;
   const failureRate = ((failed / denominator) * 100).toFixed(1);
+  const duplicateTotal = duplicateAgg._sum.duplicateCount ?? 0;
+  const evalTotal = evalPass + evalFail;
+  const evalPassRate = evalTotal
+    ? ((evalPass / evalTotal) * 100).toFixed(0)
+    : null;
+  const avgDuration = durationAgg._avg.durationMs
+    ? Math.round(durationAgg._avg.durationMs)
+    : null;
 
   return (
     <div className="flex flex-col">
@@ -59,6 +90,44 @@ export default async function DashboardPage() {
             tone={failed > 0 ? "warn" : "default"}
             hint={`${received} pending · ${replayed} replayed`}
           />
+          <StatCard
+            label="Dead Letter"
+            value={deadLetter}
+            tone={deadLetter > 0 ? "danger" : "default"}
+            hint="needs review"
+          />
+          <StatCard
+            label="Duplicates"
+            value={duplicateTotal}
+            tone={duplicateTotal > 0 ? "warn" : "default"}
+            hint="dedupe drops"
+          />
+          <StatCard
+            label="Sig Failures"
+            value={signatureFailures}
+            tone={signatureFailures > 0 ? "danger" : "default"}
+            hint="hmac rejected"
+          />
+          <StatCard
+            label="Eval Pass Rate"
+            value={evalPassRate != null ? `${evalPassRate}%` : "—"}
+            tone={
+              evalPassRate == null
+                ? "default"
+                : Number(evalPassRate) === 100
+                ? "ok"
+                : Number(evalPassRate) >= 50
+                ? "warn"
+                : "danger"
+            }
+            hint={`${evalPass}/${evalTotal} runs`}
+          />
+          <StatCard
+            label="Avg Replay"
+            value={avgDuration != null ? `${avgDuration}ms` : "—"}
+            tone="default"
+            hint="across attempts"
+          />
         </div>
 
         <div className="grid gap-6 px-6 pb-10 lg:grid-cols-3">
@@ -83,6 +152,8 @@ export default async function DashboardPage() {
                   status: e.status,
                   receivedAt: e.receivedAt,
                   errorMessage: e.errorMessage,
+                  duplicateCount: e.duplicateCount,
+                  signatureStatus: e.signatureStatus,
                 }))}
               />
             ) : (

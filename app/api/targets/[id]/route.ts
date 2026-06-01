@@ -55,5 +55,56 @@ export async function PATCH(
     entityId: updated.id,
     metadata: { changes: parsed.data, previous: { isActive: existing.isActive } },
   });
+
+  // Retry policy audits
+  const retryFields: (keyof typeof parsed.data)[] = [
+    "isRetryEnabled",
+    "maxAttempts",
+    "backoffStrategy",
+    "backoffBaseMs",
+    "timeoutMs",
+    "retryOnStatuses",
+  ];
+  const retryPolicyChanged = retryFields.some((k) => parsed.data[k] !== undefined);
+  if (retryPolicyChanged) {
+    await audit({
+      actor,
+      action: "retry_policy_updated",
+      entityType: "ReplayTarget",
+      entityId: updated.id,
+      metadata: {
+        isRetryEnabled: updated.isRetryEnabled,
+        maxAttempts: updated.maxAttempts,
+        backoffStrategy: updated.backoffStrategy,
+        backoffBaseMs: updated.backoffBaseMs,
+        timeoutMs: updated.timeoutMs,
+        retryOnStatuses: updated.retryOnStatuses,
+      },
+    });
+  }
+  if (
+    parsed.data.isRetryEnabled === true &&
+    existing.isRetryEnabled === false
+  ) {
+    await audit({
+      actor,
+      action: "retry_policy_enabled",
+      entityType: "ReplayTarget",
+      entityId: updated.id,
+      metadata: { maxAttempts: updated.maxAttempts },
+    });
+  }
+  if (
+    parsed.data.isRetryEnabled === false &&
+    existing.isRetryEnabled === true
+  ) {
+    await audit({
+      actor,
+      action: "retry_policy_disabled",
+      entityType: "ReplayTarget",
+      entityId: updated.id,
+      metadata: {},
+    });
+  }
   return NextResponse.json(updated);
 }

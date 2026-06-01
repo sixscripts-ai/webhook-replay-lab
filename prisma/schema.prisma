@@ -17,6 +17,7 @@ enum EventStatus {
   delivered
   failed
   replayed
+  dead_letter
 }
 
 enum ReplayStatus {
@@ -29,19 +30,47 @@ enum EvalRunStatus {
   fail
 }
 
+enum BackoffStrategy {
+  none
+  fixed
+  exponential
+}
+
+enum SignatureStatus {
+  not_configured
+  verified
+  failed
+}
+
 model WebhookEvent {
-  id            String      @id @default(cuid())
-  provider      String
-  eventType     String
-  status        EventStatus @default(received)
-  headers       Json
-  payload       Json
-  receivedAt    DateTime    @default(now())
-  lastReplayAt  DateTime?
-  targetId      String?
-  errorMessage  String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                       String          @id @default(cuid())
+  provider                 String
+  eventType                String
+  status                   EventStatus     @default(received)
+  headers                  Json
+  payload                  Json
+  receivedAt               DateTime        @default(now())
+  lastReplayAt             DateTime?
+  targetId                 String?
+  errorMessage             String?
+  // Dedupe
+  externalEventId          String?
+  dedupeKey                String?         @unique
+  duplicateCount           Int             @default(0)
+  firstSeenAt              DateTime        @default(now())
+  lastSeenAt               DateTime        @default(now())
+  // Signature verification
+  signatureStatus          SignatureStatus @default(not_configured)
+  signatureHeaderName      String?
+  signatureVerifiedAt      DateTime?
+  signatureFailureReason   String?
+  // Dead-letter tracking
+  deadLetterReason         String?
+  deadLetteredAt           DateTime?
+  deadLetterReviewedAt     DateTime?
+  deadLetterReviewedBy     String?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
 
   target        ReplayTarget?   @relation(fields: [targetId], references: [id], onDelete: SetNull)
   replayAttempts ReplayAttempt[]
@@ -51,16 +80,30 @@ model WebhookEvent {
   @@index([status])
   @@index([receivedAt])
   @@index([eventType])
+  @@index([signatureStatus])
+  @@index([deadLetteredAt])
 }
 
 model ReplayTarget {
-  id        String   @id @default(cuid())
-  name      String
-  provider  String
-  url       String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                              String          @id @default(cuid())
+  name                            String
+  provider                        String
+  url                             String
+  isActive                        Boolean         @default(true)
+  // Retry policy
+  isRetryEnabled                  Boolean         @default(false)
+  maxAttempts                     Int             @default(1)
+  backoffStrategy                 BackoffStrategy @default(none)
+  backoffBaseMs                   Int             @default(500)
+  timeoutMs                       Int             @default(15000)
+  retryOnStatuses                 Json            @default("[500,502,503,504]")
+  // Signature verification config
+  isSignatureVerificationEnabled  Boolean         @default(false)
+  signatureHeaderName             String?
+  signatureAlgorithm              String?         // currently only hmac-sha256
+  signingSecretEnvVar             String?         // name of env var holding secret
+  createdAt                       DateTime        @default(now())
+  updatedAt                       DateTime        @updatedAt
 
   events         WebhookEvent[]
   replayAttempts ReplayAttempt[]
@@ -81,6 +124,11 @@ model ReplayAttempt {
   durationMs      Int?
   errorMessage    String?
   attemptedAt     DateTime     @default(now())
+  // Run grouping + retry semantics
+  runId           String?
+  attemptNumber   Int          @default(1)
+  isAutomatic     Boolean      @default(false)
+  backoffDelayMs  Int?
 
   event   WebhookEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
   target  ReplayTarget  @relation(fields: [targetId], references: [id], onDelete: Cascade)
@@ -90,6 +138,7 @@ model ReplayAttempt {
   @@index([targetId])
   @@index([status])
   @@index([attemptedAt])
+  @@index([runId])
 }
 
 model AuditLog {
@@ -107,16 +156,18 @@ model AuditLog {
 }
 
 model EvalTestCase {
-  id                   String   @id @default(cuid())
-  name                 String
-  description          String?
-  eventId              String?
-  targetId             String?
-  expectedStatus       Int
-  expectedBodyIncludes String?
-  isActive             Boolean  @default(true)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  name                   String
+  description            String?
+  eventId                String?
+  targetId               String?
+  expectedStatus         Int
+  expectedBodyIncludes   String?
+  expectedMaxDurationMs  Int?
+  assertions             Json?    // optional rich assertion array
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   event   WebhookEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
   target  ReplayTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
