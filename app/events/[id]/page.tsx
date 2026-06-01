@@ -169,8 +169,8 @@ export default async function EventDetailPage({
         }
       />
 
-      <div className="grid gap-6 p-6 lg:grid-cols-3">
-        <aside className="space-y-3 lg:col-span-1">
+      <div className="grid gap-6 px-6 py-6 xl:grid-cols-3">
+        <aside className="space-y-3 xl:col-span-1">
           <Meta label="Status">
             <EventStatusBadge status={event.status} />
           </Meta>
@@ -268,7 +268,7 @@ export default async function EventDetailPage({
           />
         </aside>
 
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 xl:col-span-2">
           <section>
             <h2 className="mb-2 font-mono text-xxs uppercase tracking-widest text-fg-muted">
               timeline
@@ -318,34 +318,42 @@ export default async function EventDetailPage({
             </h2>
             {auditLogs.length ? (
               <div className="overflow-hidden rounded-md border border-border bg-bg-elevated">
-                <table className="w-full table-fixed border-collapse">
-                  <thead>
-                    <tr className="border-b border-border bg-bg-panel/60 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
-                      <th className="w-[24%] px-3 py-2 text-left">When</th>
-                      <th className="w-[20%] px-3 py-2 text-left">Actor</th>
-                      <th className="w-[28%] px-3 py-2 text-left">Action</th>
-                      <th className="w-[28%] px-3 py-2 text-left">Metadata</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditLogs.slice(0, 25).map((l) => (
-                      <tr key={l.id} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2 font-mono text-xxs text-fg-muted">
-                          {l.createdAt.toISOString().replace("T", " ").slice(0, 19)}
-                        </td>
-                        <td className="px-3 py-2 font-mono text-xxs text-fg-muted">
-                          {l.actor}
-                        </td>
-                        <td className="px-3 py-2 font-mono text-xxs text-fg">
-                          {l.action}
-                        </td>
-                        <td className="truncate px-3 py-2 font-mono text-xxs text-fg-subtle">
-                          {JSON.stringify(l.metadata)}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] table-fixed border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-bg-panel/60 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
+                        <th className="w-[24%] px-3 py-2.5 text-left">When</th>
+                        <th className="w-[20%] px-3 py-2.5 text-left">Actor</th>
+                        <th className="w-[28%] px-3 py-2.5 text-left">Action</th>
+                        <th className="w-[28%] px-3 py-2.5 text-left">Metadata</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {auditLogs.slice(0, 25).map((l) => {
+                        const meta = JSON.stringify(l.metadata);
+                        return (
+                          <tr key={l.id} className="border-b border-border last:border-0 transition-colors hover:bg-bg-panel/40">
+                            <td className="px-3 py-2.5 font-mono text-xxs text-fg-muted">
+                              {l.createdAt.toISOString().replace("T", " ").slice(0, 19)}
+                            </td>
+                            <td className="px-3 py-2.5 font-mono text-xxs text-fg-muted">
+                              {l.actor}
+                            </td>
+                            <td className="px-3 py-2.5 font-mono text-xxs text-fg">
+                              {l.action}
+                            </td>
+                            <td
+                              className="truncate px-3 py-2.5 font-mono text-xxs text-fg-subtle"
+                              title={meta}
+                            >
+                              {meta}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               <div className="rounded-md border border-dashed border-border bg-bg-elevated/40 px-4 py-6 text-center font-mono text-xxs uppercase tracking-widest text-fg-subtle">

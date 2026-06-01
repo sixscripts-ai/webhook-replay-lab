@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SidebarNav } from "./SidebarNav";
 
 const navItems = [
   { href: "/", label: "Dashboard" },
@@ -13,28 +13,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="hidden w-60 shrink-0 border-r border-border bg-bg-elevated md:flex md:flex-col">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-bg-elevated md:flex">
         <div className="flex h-14 items-center gap-2 border-b border-border px-5">
           <div className="h-2.5 w-2.5 rounded-full bg-volt shadow-[0_0_10px_#c6f24e]" />
           <span className="font-mono text-sm tracking-tight text-fg">
             webhook<span className="text-fg-muted">/</span>replay
           </span>
         </div>
-        <nav className="flex-1 px-2 py-4">
-          <ul className="space-y-0.5">
-            {navItems.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="flex items-center gap-2 rounded-md px-3 py-2 font-mono text-xs uppercase tracking-wide text-fg-muted transition-colors hover:bg-bg-panel hover:text-fg"
-                >
-                  <span className="text-fg-subtle">›</span>
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <SidebarNav items={navItems} />
         <div className="border-t border-border p-4">
           <p className="font-mono text-xxs uppercase tracking-wider text-fg-subtle">
             v0.1 · hosted demo
@@ -44,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-border bg-bg/80 px-5 backdrop-blur">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-bg/85 px-5 backdrop-blur">
           <div className="flex items-center gap-3">
             <span className="font-mono text-xs uppercase tracking-widest text-fg-muted">
               WEBHOOK REPLAY LAB

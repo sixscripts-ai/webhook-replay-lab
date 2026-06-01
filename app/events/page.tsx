@@ -77,7 +77,7 @@ export default async function EventsPage({
 
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3 border-b border-border bg-bg-elevated/40 px-6 py-4"
+        className="flex flex-wrap items-end gap-4 border-b border-border bg-bg-elevated/40 px-6 py-5"
       >
         <Field label="Search">
           <input

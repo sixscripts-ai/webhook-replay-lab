@@ -50,17 +50,18 @@ export function DeadLetterTable({ rows }: { rows: DeadLetterRow[] }) {
 
   return (
     <div className="overflow-hidden rounded-md border border-border bg-bg-elevated">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b border-border bg-bg-panel/60 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
-            <th className="w-[28%] px-3 py-2 text-left">Event</th>
-            <th className="w-[12%] px-3 py-2 text-left">Provider</th>
-            <th className="w-[8%] px-3 py-2 text-center">Attempts</th>
-            <th className="w-[16%] px-3 py-2 text-left">Last Attempt</th>
-            <th className="w-[20%] px-3 py-2 text-left">Reason</th>
-            <th className="w-[16%] px-3 py-2 text-right">Action</th>
-          </tr>
-        </thead>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] border-collapse">
+          <thead>
+            <tr className="border-b border-border bg-bg-panel/60 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
+              <th className="w-[28%] px-3 py-2.5 text-left">Event</th>
+              <th className="w-[12%] px-3 py-2.5 text-left">Provider</th>
+              <th className="w-[8%] px-3 py-2.5 text-center">Attempts</th>
+              <th className="w-[16%] px-3 py-2.5 text-left">Last Attempt</th>
+              <th className="w-[20%] px-3 py-2.5 text-left">Reason</th>
+              <th className="w-[16%] px-3 py-2.5 text-right">Action</th>
+            </tr>
+          </thead>
         <tbody>
           {rows.map((r, idx) => {
             const ts = r.deadLetteredAt
@@ -151,6 +152,7 @@ export function DeadLetterTable({ rows }: { rows: DeadLetterRow[] }) {
           })}
         </tbody>
       </table>
+      </div>
       <div className="border-t border-border bg-bg-panel/40 px-3 py-2 font-mono text-xxs text-fg-subtle">
         Reviewing keeps the record. Items are never deleted from the queue.
       </div>

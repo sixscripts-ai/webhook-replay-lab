@@ -21,22 +21,24 @@ export function TryItPanel() {
   }
 
   return (
-    <div className="rounded-md border border-border bg-bg-elevated">
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+    <div className="flex min-w-0 flex-col rounded-md border border-border bg-bg-elevated">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="font-mono text-xxs uppercase tracking-widest text-fg-subtle">
           try it · capture a webhook
         </div>
         <button
           onClick={copy}
-          className="rounded border border-border bg-bg px-2 py-1 font-mono text-xxs uppercase tracking-wider text-fg-muted hover:border-volt hover:text-volt"
+          className="shrink-0 rounded border border-border bg-bg px-2 py-1 font-mono text-xxs uppercase tracking-wider text-fg-muted hover:border-volt hover:text-volt"
         >
           {copied ? "copied" : "copy"}
         </button>
       </div>
-      <pre className="overflow-auto px-3 py-3 font-mono text-xs leading-relaxed text-fg">
-        <code>{CURL_COMMAND}</code>
-      </pre>
-      <div className="border-t border-border px-3 py-2 font-mono text-xxs text-fg-muted">
+      <div className="min-w-0 overflow-x-auto">
+        <pre className="whitespace-pre px-4 py-4 font-mono text-xs leading-relaxed text-fg">
+          <code>{CURL_COMMAND}</code>
+        </pre>
+      </div>
+      <div className="border-t border-border bg-bg-panel/40 px-4 py-3 font-mono text-xxs text-fg-muted">
         Send this request, then refresh the Events page to see the captured webhook.
       </div>
     </div>

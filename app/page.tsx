@@ -78,8 +78,12 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="bg-grid">
-        <div className="grid grid-cols-2 gap-3 p-6 md:grid-cols-3 xl:grid-cols-5">
+      <div className="bg-grid space-y-8 px-6 py-8">
+        <section>
+          <h2 className="mb-4 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
+            metrics
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           <StatCard label="Total Events" value={total} />
           <StatCard label="Successful" value={successful} tone="ok" />
           <StatCard label="Failed" value={failed} tone="danger" />
@@ -128,12 +132,13 @@ export default async function DashboardPage() {
             tone="default"
             hint="across attempts"
           />
-        </div>
+          </div>
+        </section>
 
-        <div className="grid gap-6 px-6 pb-10 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-mono text-xs uppercase tracking-widest text-fg-muted">
+        <div className="grid gap-6 xl:grid-cols-3">
+          <section className="min-w-0 xl:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-mono text-xxs uppercase tracking-widest text-fg-subtle">
                 recent events
               </h2>
               <Link
@@ -145,7 +150,7 @@ export default async function DashboardPage() {
             </div>
             {recent.length ? (
               <EventTable
-                rows={recent.map((e) => ({
+                rows={recent.map((e: typeof recent[number]) => ({
                   id: e.id,
                   provider: e.provider,
                   eventType: e.eventType,
@@ -162,10 +167,15 @@ export default async function DashboardPage() {
                 description="Send a webhook with the snippet on the right, or POST to /api/webhooks/<provider>."
               />
             )}
-          </div>
-          <div className="lg:col-span-1">
+          </section>
+          <section className="min-w-0 xl:col-span-1">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-mono text-xxs uppercase tracking-widest text-fg-subtle">
+                try it
+              </h2>
+            </div>
             <TryItPanel />
-          </div>
+          </section>
         </div>
       </div>
     </div>
