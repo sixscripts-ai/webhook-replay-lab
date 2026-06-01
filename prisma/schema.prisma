@@ -1,0 +1,144 @@
+// Webhook Replay Lab — Prisma schema
+// Postgres is the target database. Tables are designed to be append-friendly:
+// every webhook is stored even if its shape is unknown.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventStatus {
+  received
+  delivered
+  failed
+  replayed
+}
+
+enum ReplayStatus {
+  success
+  failed
+}
+
+enum EvalRunStatus {
+  pass
+  fail
+}
+
+model WebhookEvent {
+  id            String      @id @default(cuid())
+  provider      String
+  eventType     String
+  status        EventStatus @default(received)
+  headers       Json
+  payload       Json
+  receivedAt    DateTime    @default(now())
+  lastReplayAt  DateTime?
+  targetId      String?
+  errorMessage  String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  target        ReplayTarget?   @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  replayAttempts ReplayAttempt[]
+  evalTestCases  EvalTestCase[]
+
+  @@index([provider])
+  @@index([status])
+  @@index([receivedAt])
+  @@index([eventType])
+}
+
+model ReplayTarget {
+  id        String   @id @default(cuid())
+  name      String
+  provider  String
+  url       String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events         WebhookEvent[]
+  replayAttempts ReplayAttempt[]
+  evalTestCases  EvalTestCase[]
+
+  @@index([provider])
+  @@index([isActive])
+}
+
+model ReplayAttempt {
+  id              String       @id @default(cuid())
+  eventId         String
+  targetId        String
+  status          ReplayStatus
+  requestPayload  Json
+  responseStatus  Int?
+  responseBody    String?
+  durationMs      Int?
+  errorMessage    String?
+  attemptedAt     DateTime     @default(now())
+
+  event   WebhookEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  target  ReplayTarget  @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  evalRuns EvalRun[]
+
+  @@index([eventId])
+  @@index([targetId])
+  @@index([status])
+  @@index([attemptedAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model EvalTestCase {
+  id                   String   @id @default(cuid())
+  name                 String
+  description          String?
+  eventId              String?
+  targetId             String?
+  expectedStatus       Int
+  expectedBodyIncludes String?
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  event   WebhookEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  target  ReplayTarget? @relation(fields: [targetId], references: [id], onDelete: SetNull)
+  runs    EvalRun[]
+
+  @@index([isActive])
+}
+
+model EvalRun {
+  id              String         @id @default(cuid())
+  testCaseId      String
+  replayAttemptId String?
+  status          EvalRunStatus
+  expectedStatus  Int
+  actualStatus    Int?
+  evidence        Json
+  notes           String?
+  createdAt       DateTime       @default(now())
+
+  testCase      EvalTestCase   @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  replayAttempt ReplayAttempt? @relation(fields: [replayAttemptId], references: [id], onDelete: SetNull)
+
+  @@index([testCaseId])
+  @@index([status])
+  @@index([createdAt])
+}
