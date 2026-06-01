@@ -3,7 +3,8 @@
 // every webhook is stored even if its shape is unknown.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
