@@ -6,6 +6,26 @@ verifying signatures, deduplicating, and tracking reliability metrics.
 
 **Live demo:** https://webhookreplay-lab.vercel.app/
 
+## Screenshots
+
+### Dashboard — totals, reliability metrics, recent events
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Events inbox — searchable, filterable webhook list
+![Events inbox](docs/screenshots/events-inbox.png)
+
+### Event detail — metadata, signature, dedupe, payload, replay timeline, audit
+![Event detail](docs/screenshots/event-detail.png)
+
+### Targets — replay endpoints with retry policy and signature config
+![Targets](docs/screenshots/targets.png)
+
+### EvalBench Lite — assertion-based replay test cases with evidence
+![Evals](docs/screenshots/evals.png)
+
+### Dead-letter queue — exhausted retries and rejected signatures
+![Dead letter queue](docs/screenshots/dead-letter.png)
+
 ## What it does
 
 - Captures any incoming webhook (POST `/api/webhooks/<provider>`) verbatim —
@@ -61,6 +81,7 @@ npm run dev                # http://localhost:3000
 | `DATABASE_URL` | Postgres connection string |
 | `MIGRATION_TOKEN` | Required to call `/api/admin/migrate` and `/api/admin/seed` |
 | `NEXT_PUBLIC_APP_URL` | Public URL for server-side link construction (optional) |
+| `DEMO_RECEIVER_BASE_URL` | Optional override for the host used in seeded demo target URLs. Defaults to the deployed demo (`https://webhookreplay-lab.vercel.app`). Server-only on purpose — never inlined in the client bundle. Set to `http://localhost:3000` to reseed local targets at the local receiver. |
 | `STRIPE_DEMO_SIGNING_SECRET` | HMAC secret for the seeded `stripe-demo` target. Only the env var **name** is stored in the DB; the value never leaves the server. |
 
 A SQLite URL will not work — the schema uses Postgres-only `Json` columns
@@ -83,7 +104,8 @@ npx prisma db seed       # local
 
 `npx prisma db seed` (or `npm run db:seed`) is idempotent and loads:
 
-- 3 replay targets:
+- 3 replay targets, each pointing at the deployed demo receiver
+  (`https://webhookreplay-lab.vercel.app/api/demo-receiver/<provider>`):
   - `stripe-demo` — retry enabled (3 attempts, exponential backoff,
     retries on 500/502/503/504) and signature verification enabled.
   - `github-demo` — no retries, no signature verification.
@@ -93,8 +115,8 @@ npx prisma db seed       # local
   and dead-lettered after retry exhaustion.
 - 5 historical replay attempts including a 3-attempt retry chain grouped
   by `runId` with `attemptNumber`, `isAutomatic`, and `backoffDelayMs`.
-- 23 audit log entries covering every M3 action.
-- 3 eval test cases using assertion lists; eval runs persist
+- An audit log covering every M3 action.
+- 2 eval test cases using assertion lists; eval runs persist
   `assertions[]` evidence (planned vs. actual per assertion).
 
 ## Retry policy

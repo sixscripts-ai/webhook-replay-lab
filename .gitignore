@@ -8,6 +8,8 @@ dist
 # Env
 .env
 .env.local
+.env.production
+.env.development.local
 
 # Misc
 .DS_Store
