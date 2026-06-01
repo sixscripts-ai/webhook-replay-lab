@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="border-t border-border p-4">
           <p className="font-mono text-xxs uppercase tracking-wider text-fg-subtle">
-            v0.1 · local demo
+            v0.1 · hosted demo
           </p>
         </div>
       </aside>

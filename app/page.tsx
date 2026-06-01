@@ -4,6 +4,7 @@ import { StatCard } from "@/components/StatCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EventTable } from "@/components/EventTable";
 import { EmptyState } from "@/components/EmptyState";
+import { TryItPanel } from "@/components/TryItPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function DashboardPage() {
       <SectionHeader
         eyebrow="overview"
         title="Webhook Replay Lab"
-        description="Capture incoming webhook events, inspect payloads, replay failed deliveries, and track every retry. Local demo data is loaded by default."
+        description="Capture incoming webhook events, inspect payloads, replay failed deliveries, and track every retry. Demo data is seeded — send your own event with the snippet below."
         actions={
           <Link
             href="/events"
@@ -56,35 +57,40 @@ export default async function DashboardPage() {
           />
         </div>
 
-        <div className="px-6 pb-10">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-mono text-xs uppercase tracking-widest text-fg-muted">
-              recent events
-            </h2>
-            <Link
-              href="/events"
-              className="font-mono text-xxs uppercase tracking-widest text-fg-subtle hover:text-volt"
-            >
-              view all →
-            </Link>
+        <div className="grid gap-6 px-6 pb-10 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-mono text-xs uppercase tracking-widest text-fg-muted">
+                recent events
+              </h2>
+              <Link
+                href="/events"
+                className="font-mono text-xxs uppercase tracking-widest text-fg-subtle hover:text-volt"
+              >
+                view all →
+              </Link>
+            </div>
+            {recent.length ? (
+              <EventTable
+                rows={recent.map((e) => ({
+                  id: e.id,
+                  provider: e.provider,
+                  eventType: e.eventType,
+                  status: e.status,
+                  receivedAt: e.receivedAt,
+                  errorMessage: e.errorMessage,
+                }))}
+              />
+            ) : (
+              <EmptyState
+                title="No events captured yet"
+                description="Send a webhook with the snippet on the right, or POST to /api/webhooks/<provider>."
+              />
+            )}
           </div>
-          {recent.length ? (
-            <EventTable
-              rows={recent.map((e) => ({
-                id: e.id,
-                provider: e.provider,
-                eventType: e.eventType,
-                status: e.status,
-                receivedAt: e.receivedAt,
-                errorMessage: e.errorMessage,
-              }))}
-            />
-          ) : (
-            <EmptyState
-              title="No events captured yet"
-              description="Send a webhook to /api/webhooks/<provider> or run the seed script to populate demo data."
-            />
-          )}
+          <div className="lg:col-span-1">
+            <TryItPanel />
+          </div>
         </div>
       </div>
     </div>

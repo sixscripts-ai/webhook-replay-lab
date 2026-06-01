@@ -68,11 +68,14 @@ export default async function TargetsPage() {
                 })}
               </tbody>
             </table>
+            <div className="border-t border-border px-3 py-2 font-mono text-xxs text-fg-subtle">
+              Target creation is planned. This demo uses seeded targets to show replay behavior.
+            </div>
           </div>
         ) : (
           <EmptyState
             title="No replay targets configured"
-            description="Run the seed script or add a target via the database to enable replays."
+            description="Target creation is planned. This demo uses seeded targets to show replay behavior."
           />
         )}
       </div>

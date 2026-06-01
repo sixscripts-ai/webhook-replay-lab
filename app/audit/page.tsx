@@ -60,7 +60,7 @@ export default async function AuditPage() {
         ) : (
           <EmptyState
             title="No audit entries yet"
-            description="Run the seed script or interact with the app to populate the audit log."
+            description="Send a webhook or trigger a replay to populate the audit log."
           />
         )}
       </div>
