@@ -50,64 +50,87 @@ export function DeadLetterTable({ rows }: { rows: DeadLetterRow[] }) {
 
   return (
     <div className="overflow-hidden rounded-md border border-border bg-bg-elevated">
-      <table className="w-full table-fixed border-collapse">
+      <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-border bg-bg-panel/60 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
-            <th className="w-[24%] px-3 py-2 text-left">Event</th>
+            <th className="w-[28%] px-3 py-2 text-left">Event</th>
             <th className="w-[12%] px-3 py-2 text-left">Provider</th>
-            <th className="w-[8%] px-3 py-2 text-left">Attempts</th>
-            <th className="w-[14%] px-3 py-2 text-left">Last Attempt</th>
-            <th className="w-[24%] px-3 py-2 text-left">Reason</th>
-            <th className="w-[18%] px-3 py-2 text-right">Action</th>
+            <th className="w-[8%] px-3 py-2 text-center">Attempts</th>
+            <th className="w-[16%] px-3 py-2 text-left">Last Attempt</th>
+            <th className="w-[20%] px-3 py-2 text-left">Reason</th>
+            <th className="w-[16%] px-3 py-2 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => {
+          {rows.map((r, idx) => {
             const ts = r.deadLetteredAt
               ? typeof r.deadLetteredAt === "string"
                 ? new Date(r.deadLetteredAt)
                 : r.deadLetteredAt
               : null;
             const reviewed = r.reviewedAt != null;
+            const reviewedTs = r.reviewedAt
+              ? typeof r.reviewedAt === "string"
+                ? new Date(r.reviewedAt)
+                : r.reviewedAt
+              : null;
             return (
               <tr
                 key={r.id}
-                className="border-b border-border last:border-0 align-top"
+                className={`border-b border-border last:border-0 align-top ${
+                  idx % 2 === 1 ? "bg-bg-panel/20" : ""
+                } ${reviewed ? "opacity-80" : ""}`}
               >
-                <td className="px-3 py-2">
+                <td className="px-3 py-3">
                   <Link
                     href={`/events/${r.id}`}
-                    className="font-mono text-xs text-fg hover:text-volt"
+                    className="block font-mono text-xs text-fg hover:text-volt"
                   >
-                    <span className="text-fg-subtle">›</span>{" "}
-                    <span className="text-fg-muted">{r.eventType}</span>
-                    <div className="truncate font-mono text-xxs text-fg-subtle">
-                      {r.id}
-                    </div>
+                    <span className="text-volt">›</span>{" "}
+                    <span className="text-fg">{r.eventType}</span>
                   </Link>
+                  <div className="mt-1 truncate font-mono text-xxs text-fg-subtle">
+                    {r.id}
+                  </div>
                   {r.targetName ? (
-                    <div className="truncate font-mono text-xxs text-fg-subtle">
+                    <div className="mt-1 truncate font-mono text-xxs text-fg-muted">
                       → {r.targetName}
                     </div>
                   ) : null}
                 </td>
-                <td className="truncate px-3 py-2 font-mono text-xs text-fg-muted">
-                  {r.provider}
+                <td className="px-3 py-3 align-top">
+                  <span className="rounded border border-border bg-bg-panel px-1.5 py-0.5 font-mono text-xxs uppercase tracking-wider text-fg-muted">
+                    {r.provider}
+                  </span>
                 </td>
-                <td className="px-3 py-2 font-mono text-xs text-fg-muted">
+                <td className="px-3 py-3 text-center align-top font-mono text-sm tabular-nums text-fg">
                   {r.attemptsCount}
                 </td>
-                <td className="px-3 py-2 font-mono text-xxs text-fg-muted">
-                  {ts ? ts.toISOString().slice(0, 19).replace("T", " ") : "—"}
+                <td className="px-3 py-3 align-top font-mono text-xxs text-fg-muted">
+                  {ts
+                    ? ts.toISOString().slice(0, 19).replace("T", " ") + " UTC"
+                    : "—"}
                 </td>
-                <td className="truncate px-3 py-2 font-mono text-xxs text-danger">
+                <td className="px-3 py-3 align-top font-mono text-xxs leading-snug text-danger">
                   {r.deadLetterReason ?? "—"}
                 </td>
-                <td className="px-3 py-2 text-right font-mono text-xxs">
+                <td className="px-3 py-3 text-right align-top font-mono text-xxs">
                   {reviewed ? (
-                    <span className="inline-flex items-center gap-1 rounded border border-ok/40 bg-ok/10 px-1.5 py-0.5 uppercase tracking-wider text-ok">
-                      reviewed
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="inline-flex items-center gap-1 rounded border border-ok/40 bg-ok/10 px-2 py-0.5 uppercase tracking-wider text-ok">
+                        ✓ reviewed
+                      </span>
+                      {r.reviewedBy ? (
+                        <span className="text-fg-subtle">
+                          by {r.reviewedBy}
+                          {reviewedTs
+                            ? ` · ${reviewedTs
+                                .toISOString()
+                                .slice(0, 10)}`
+                            : ""}
+                        </span>
+                      ) : null}
+                    </div>
                   ) : (
                     <button
                       onClick={() => review(r.id)}
@@ -122,18 +145,13 @@ export function DeadLetterTable({ rows }: { rows: DeadLetterRow[] }) {
                       {errors[r.id]}
                     </div>
                   ) : null}
-                  {reviewed && r.reviewedBy ? (
-                    <div className="mt-1 text-fg-subtle">
-                      by {r.reviewedBy}
-                    </div>
-                  ) : null}
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <div className="border-t border-border px-3 py-2 font-mono text-xxs text-fg-subtle">
+      <div className="border-t border-border bg-bg-panel/40 px-3 py-2 font-mono text-xxs text-fg-subtle">
         Reviewing keeps the record. Items are never deleted from the queue.
       </div>
     </div>

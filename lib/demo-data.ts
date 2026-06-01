@@ -1,9 +1,14 @@
 // Static demo dataset used by the seed script and as a fallback display set
 // when the database is empty. Kept dependency-free so it can be imported by
 // both server components and the seed script.
+//
+// Targets always point at the deployed receiver so seeded replays succeed
+// against the hosted demo. Override with `DEMO_RECEIVER_BASE_URL` (server-only
+// env, never inlined in the client bundle) when running against a different
+// host, e.g. a preview deployment or a local tunnel.
 
 const RECEIVER_BASE =
-  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
+  process.env.DEMO_RECEIVER_BASE_URL?.replace(/\/$/, "") ||
   "https://webhookreplay-lab.vercel.app";
 
 export const demoTargets = [
