@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EventStatusBadge } from "@/components/EventStatusBadge";
 import { JsonViewer } from "@/components/JsonViewer";
-import { ReplayButton } from "@/components/ReplayButton";
+import { ReplayPanel } from "@/components/ReplayPanel";
 import { ReplayHistory } from "@/components/ReplayHistory";
 
 export const dynamic = "force-dynamic";
@@ -27,13 +27,22 @@ export default async function EventDetailPage({
 
   if (!event) notFound();
 
-  const auditLogs = await prisma.auditLog.findMany({
-    where: { entityType: "WebhookEvent", entityId: event.id },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+  const [auditLogs, allTargets] = await Promise.all([
+    prisma.auditLog.findMany({
+      where: { entityType: "WebhookEvent", entityId: event.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.replayTarget.findMany({
+      orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+    }),
+  ]);
 
-  const canReplay = event.status === "failed" || event.status === "received";
+  const canReplay = event.status !== "delivered";
+  const disabledReason =
+    event.status === "delivered"
+      ? "This event was already delivered to its destination."
+      : undefined;
 
   return (
     <div className="flex flex-col">
@@ -42,15 +51,12 @@ export default async function EventDetailPage({
         title={event.eventType}
         description={event.id}
         actions={
-          <div className="flex items-center gap-2">
-            <Link
-              href="/events"
-              className="rounded border border-border bg-bg-elevated px-3 py-1.5 font-mono text-xxs uppercase tracking-widest text-fg-muted hover:border-volt hover:text-volt"
-            >
-              ← inbox
-            </Link>
-            <ReplayButton eventId={event.id} disabled={!canReplay} />
-          </div>
+          <Link
+            href="/events"
+            className="rounded border border-border bg-bg-elevated px-3 py-1.5 font-mono text-xxs uppercase tracking-widest text-fg-muted hover:border-volt hover:text-volt"
+          >
+            ← inbox
+          </Link>
         }
       />
 
@@ -97,6 +103,20 @@ export default async function EventDetailPage({
               </span>
             </Meta>
           ) : null}
+          <ReplayPanel
+            eventId={event.id}
+            eventProvider={event.provider}
+            defaultTargetId={event.targetId}
+            canReplay={canReplay}
+            disabledReason={disabledReason}
+            targets={allTargets.map((t) => ({
+              id: t.id,
+              name: t.name,
+              provider: t.provider,
+              url: t.url,
+              isActive: t.isActive,
+            }))}
+          />
         </aside>
 
         <div className="space-y-6 lg:col-span-2">
@@ -123,6 +143,7 @@ export default async function EventDetailPage({
                 id: a.id,
                 status: a.status,
                 responseStatus: a.responseStatus,
+                responseBody: a.responseBody,
                 durationMs: a.durationMs,
                 errorMessage: a.errorMessage,
                 attemptedAt: a.attemptedAt,

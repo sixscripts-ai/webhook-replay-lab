@@ -2,6 +2,7 @@ type Attempt = {
   id: string;
   status: "success" | "failed";
   responseStatus?: number | null;
+  responseBody?: string | null;
   durationMs?: number | null;
   errorMessage?: string | null;
   attemptedAt: Date | string;
@@ -22,12 +23,12 @@ export function ReplayHistory({ attempts }: { attempts: Attempt[] }) {
       <table className="w-full table-fixed border-collapse">
         <thead>
           <tr className="border-b border-border bg-bg-panel/60 font-mono text-xxs uppercase tracking-widest text-fg-subtle">
-            <th className="w-[18%] px-3 py-2 text-left">When</th>
-            <th className="w-[14%] px-3 py-2 text-left">Status</th>
-            <th className="w-[10%] px-3 py-2 text-left">Code</th>
+            <th className="w-[16%] px-3 py-2 text-left">When</th>
+            <th className="w-[10%] px-3 py-2 text-left">Status</th>
+            <th className="w-[8%] px-3 py-2 text-left">Code</th>
             <th className="w-[10%] px-3 py-2 text-left">Duration</th>
-            <th className="w-[24%] px-3 py-2 text-left">Target</th>
-            <th className="w-[24%] px-3 py-2 text-left">Note</th>
+            <th className="w-[18%] px-3 py-2 text-left">Target</th>
+            <th className="w-[38%] px-3 py-2 text-left">Response / Error</th>
           </tr>
         </thead>
         <tbody>
@@ -40,10 +41,18 @@ export function ReplayHistory({ attempts }: { attempts: Attempt[] }) {
               a.status === "success"
                 ? "border-ok/40 bg-ok/10 text-ok"
                 : "border-danger/50 bg-danger/10 text-danger";
+            const note =
+              a.status === "failed" && a.errorMessage
+                ? a.errorMessage
+                : a.responseBody
+                ? a.responseBody.slice(0, 200)
+                : a.status === "success"
+                ? "ok"
+                : "—";
             return (
               <tr
                 key={a.id}
-                className="border-b border-border last:border-0"
+                className="border-b border-border last:border-0 align-top"
               >
                 <td className="px-3 py-2 font-mono text-xs text-fg-muted">
                   {ts.toISOString().slice(0, 19).replace("T", " ")}
@@ -64,8 +73,10 @@ export function ReplayHistory({ attempts }: { attempts: Attempt[] }) {
                 <td className="truncate px-3 py-2 font-mono text-xxs text-fg-muted">
                   {a.target ? a.target.name : "—"}
                 </td>
-                <td className="truncate px-3 py-2 font-mono text-xxs text-fg-subtle">
-                  {a.errorMessage ?? "ok"}
+                <td className="px-3 py-2 font-mono text-xxs text-fg-subtle">
+                  <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-all">
+                    {note}
+                  </pre>
                 </td>
               </tr>
             );

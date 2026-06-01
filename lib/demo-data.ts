@@ -2,26 +2,30 @@
 // when the database is empty. Kept dependency-free so it can be imported by
 // both server components and the seed script.
 
+const RECEIVER_BASE =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
+  "https://webhookreplay-lab.vercel.app";
+
 export const demoTargets = [
   {
     id: "tgt_demo_stripe",
     name: "Stripe Internal Forwarder",
     provider: "stripe-demo",
-    url: "https://example.com/hooks/stripe",
+    url: `${RECEIVER_BASE}/api/demo-receiver/stripe`,
     isActive: true,
   },
   {
     id: "tgt_demo_github",
     name: "GitHub Sync Worker",
     provider: "github-demo",
-    url: "https://example.com/hooks/github",
+    url: `${RECEIVER_BASE}/api/demo-receiver/github`,
     isActive: true,
   },
   {
     id: "tgt_demo_shopify",
     name: "Shopify Order Bridge",
     provider: "shopify-demo",
-    url: "https://example.com/hooks/shopify",
+    url: `${RECEIVER_BASE}/api/demo-receiver/shopify`,
     isActive: false,
   },
 ];
@@ -157,20 +161,21 @@ export const demoEvalCases = [
   {
     id: "eval_demo_1",
     name: "Stripe payment.failed forwards 200",
-    description: "Replaying a failed payment should reach the forwarder and return 200.",
+    description: "Replaying a failed payment should reach the forwarder and return 200 with ok:true.",
     eventId: "evt_demo_001",
     targetId: "tgt_demo_stripe",
     expectedStatus: 200,
-    expectedBodyIncludes: "ok",
+    expectedBodyIncludes: '"ok":true',
     isActive: true,
   },
   {
     id: "eval_demo_2",
-    name: "Shopify orders/create dispatched",
-    description: "New orders should be accepted by the order bridge.",
-    eventId: "evt_demo_004",
-    targetId: "tgt_demo_shopify",
-    expectedStatus: 202,
+    name: "GitHub pull_request.opened forwards 200",
+    description: "Replaying an opened PR should be accepted by the sync worker.",
+    eventId: "evt_demo_003",
+    targetId: "tgt_demo_github",
+    expectedStatus: 200,
+    expectedBodyIncludes: '"ok":true',
     isActive: true,
   },
 ];

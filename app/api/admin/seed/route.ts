@@ -118,10 +118,10 @@ export async function POST(req: NextRequest) {
         testCaseId: "eval_demo_2",
         replayAttemptId: attempt2.id,
         status: "pass",
-        expectedStatus: 202,
+        expectedStatus: 200,
         actualStatus: 200,
-        evidence: { responseBody: '{"ok":true}' },
-        notes: "Bridge accepted with 200; flagged as pass per relaxed rule.",
+        evidence: { responseBody: '{"ok":true,"provider":"github"}' },
+        notes: "Sync worker accepted with 200.",
       },
     });
 

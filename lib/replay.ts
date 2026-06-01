@@ -53,6 +53,14 @@ export async function replayEvent(opts: {
   if (!target) throw new Error(`Replay target ${targetId} not found`);
   if (!target.isActive) throw new Error(`Replay target "${target.name}" is inactive`);
 
+  await audit({
+    actor: opts.actor,
+    action: "event.replay.started",
+    entityType: "WebhookEvent",
+    entityId: event.id,
+    metadata: { targetId: target.id, targetName: target.name, targetUrl: target.url },
+  });
+
   // Clone the payload so we never mutate the original
   const requestPayload = JSON.parse(JSON.stringify(event.payload));
 
